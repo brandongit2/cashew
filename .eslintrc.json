@@ -32,7 +32,6 @@
       }
     ],
     "prefer-const": 0,
-    "no-console": [1, {"allow": ["warn", "error"]}],
     "no-constant-condition": [2, {"checkLoops": false}],
     "no-control-regex": 0,
     "no-empty": 1,
