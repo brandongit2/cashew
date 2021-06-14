@@ -6,6 +6,8 @@ export class ParserError extends Error {
   }
 }
 
+const stack = []
+
 export default function parser(tokens: Token[]): any {
   for (let i = 0; i < tokens.length; ) {
     const token = tokens[i]

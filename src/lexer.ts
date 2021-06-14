@@ -1,3 +1,9 @@
+export enum Mode {
+  STATEMENT,
+  FUNCTION,
+  EXPRESSION,
+}
+
 export enum TT {
   OBJECT = `object`,
   LITERAL = `literal`,
@@ -9,46 +15,37 @@ export interface Token {
   type: TT
 }
 
+export interface Expression {
+  tokens: Token[]
+}
+
+export interface Statement {
+  expressions: Expression[]
+}
+
+export class LexerError extends Error {
+  constructor(public msg: string) {
+    super(msg)
+  }
+}
+
 export default function lexer(code: string): Token[] {
-  let tokens: Token[] = []
+  let mode: Mode = Mode.STATEMENT
+  let statements: Statement[] = []
 
   while (code.length > 0) {
     let match
 
-    match = code.match(/^print/)
-    if (match) {
-      tokens.push({
-        match: match[0],
-        type: TT.OBJECT,
-      })
-      code = code.substring(match[0].length)
-      continue
+    match = code.match(/^([()]|print|\r?\n|["'].+?["'])/)
+    if (!match) throw new LexerError(`Unknown token starting at ${code}`)
+
+    if (match[0] === `print`) {
+      mode = Mode.FUNCTION
+    } else if (match[0] === `(`) {
+      mode = Mode.EXPRESSION
     }
 
-    match = code.match(/^([()]|\r?\n)/)
-    if (match) {
-      tokens.push({
-        match: match[0],
-        type: TT.PUNCTUATION,
-      })
-      code = code.substring(match[0].length)
-      continue
-    }
-
-    match = code.match(/^["'](.+?|[0-9.]+)["']/)
-    if (match) {
-      tokens.push({
-        match: match[0],
-        type: TT.LITERAL,
-      })
-      code = code.substring(match[0].length)
-      continue
-    }
-
-    if (!match) {
-      console.log(`Unknown token starting at ${code}`)
-      break
-    }
+    statements.push({})
   }
 
   return tokens
