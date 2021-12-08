@@ -1,52 +1,112 @@
-export enum Mode {
-  STATEMENT,
-  FUNCTION,
-  EXPRESSION,
-}
+export type TokenType =
+  | `eof`
+  | `eol`
+  | `func`
+  | `import`
+  | `from`
+  | `idfr`
+  | `num`
+  | `str`
+export type Token = [TokenType | string, string | null]
 
-export enum TT {
-  OBJECT = `object`,
-  LITERAL = `literal`,
-  PUNCTUATION = `punctuation`,
-}
+export function lexer(file: string) {
+  let i = 0
 
-export interface Token {
-  match: string
-  type: TT
-}
-
-export interface Expression {
-  tokens: Token[]
-}
-
-export interface Statement {
-  expressions: Expression[]
-}
-
-export class LexerError extends Error {
-  constructor(public msg: string) {
-    super(msg)
+  let char = ` `
+  const nextChar = () => {
+    char = file[i++]
+    if (char === undefined) throw `eof`
   }
-}
 
-export default function lexer(code: string): Token[] {
-  let mode: Mode = Mode.STATEMENT
-  let statements: Statement[] = []
-
-  while (code.length > 0) {
-    let match
-
-    match = code.match(/^([()]|print|\r?\n|["'].+?["'])/)
-    if (!match) throw new LexerError(`Unknown token starting at ${code}`)
-
-    if (match[0] === `print`) {
-      mode = Mode.FUNCTION
-    } else if (match[0] === `(`) {
-      mode = Mode.EXPRESSION
+  let buf
+  function getToken(): Token {
+    function handleComment(): void {
+      do {
+        nextChar()
+        // @ts-ignore
+      } while (char !== `\n` && char !== `\r`)
     }
 
-    statements.push({})
+    function handleIdfr(): Token {
+      buf = ``
+      while (/[\w_]/.test(char)) {
+        buf += char
+        nextChar()
+      }
+
+      if (buf === `func`) return [`func`, null]
+      if (buf === `import`) return [`import`, null]
+      if (buf === `from`) return [`from`, null]
+      return [`idfr`, buf]
+    }
+
+    function handleNum(): Token {
+      buf = ``
+      let hasEncounteredDot = false
+
+      do {
+        if (char === `.`) {
+          if (hasEncounteredDot) throw 0
+          hasEncounteredDot = true
+        }
+        buf += char
+        nextChar()
+      } while (/[0-9.]/.test(char))
+
+      return [`num`, buf]
+    }
+
+    function handleStr(): Token {
+      buf = ``
+      nextChar()
+      while (char !== `"`) {
+        buf += char
+        nextChar()
+      }
+      nextChar()
+
+      return [`str`, buf]
+    }
+
+    function handleNewLine(): Token {
+      while (char === `\n` || char === `\r` || char === `#`) {
+        // @ts-ignore
+        if (char === `#`) handleComment()
+        nextChar()
+      }
+
+      return [`eol`, null]
+    }
+
+    try {
+      while (char === ` `) nextChar()
+
+      if (/[a-zA-Z]/.test(char)) return handleIdfr()
+      if (/[0-9]/.test(char)) return handleNum()
+      if (char === `"`) return handleStr()
+      if (char === `\n` || char === `\r`) return handleNewLine()
+
+      if (char === `#`) {
+        handleComment()
+        return getToken()
+      }
+
+      try {
+        return [char, null]
+      } finally {
+        nextChar()
+      }
+    } catch (err) {
+      if (err === `eof`) return [`eof`, null]
+      throw err
+    }
   }
 
+  const tokens: Token[] = []
+  let token
+  do {
+    token = getToken()
+    tokens.push(token)
+  } while (token[0] !== `eof`)
   return tokens
 }

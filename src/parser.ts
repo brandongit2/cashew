@@ -1,4 +1,5 @@
-import {TT, Token} from "./lexer"
+import {AstNode, IdfrNode, ImportListNode, ImportNode, StrNode} from "./Ast"
+import {Token} from "./lexer"
 
 export class ParserError extends Error {
   constructor(public msg: string) {
@@ -6,43 +7,83 @@ export class ParserError extends Error {
   }
 }
 
-const stack = []
+export function parser(tokens: Token[]) {
+  let i = 0
+  let token = tokens[i]
+  function nextToken() {
+    token = tokens[++i]
+  }
 
-export default function parser(tokens: Token[]): any {
-  for (let i = 0; i < tokens.length; ) {
-    const token = tokens[i]
-    let numTokensConsumed = 1
+  const rootNodes: AstNode[] = []
 
-    switch (token.type) {
-      case TT.OBJECT: {
-        if (token.match === `print`) {
-          if (tokens[i + 1].match !== `(`) throw new ParserError(`Expected '('; instead found ${token.match}.`)
-          if (tokens[i + 3].match !== `)`) throw new ParserError(`Expected ')'; instead found ${token.match}.`)
+  while (token !== undefined) {
+    parseTopLevelExpr()
+  }
 
-          const literal = tokens[i + 2]
-          if (literal.type !== TT.LITERAL)
-            throw new ParserError(`Expected a literal; instead found a(n) ${literal.type}.`)
-
-          let toPrint = literal.match
-          if (/^["'].+?["']$/.test(literal.match)) {
-            toPrint = literal.match.slice(1, -1)
-          }
-
-          console.log(toPrint)
-
-          numTokensConsumed = 4
-        }
-
-        break
-      }
-      case TT.PUNCTUATION: {
-        break
-      }
-      default: {
-        throw new ParserError(`Unknown token ${token.match}.`)
-      }
+  function parseTopLevelExpr() {
+    if (token[0] === `import`) {
+      parseImportExpr()
+    } else if (token[0] === `idfr` && tokens[i + 1][0] === `=`) {
+      parseAssgmtExpr()
     }
 
-    i += numTokensConsumed
+    nextToken()
   }
+
+  function parseImportExpr() {
+    let importMembers: IdfrNode[] = []
+    let importSrc = ``
+
+    nextToken()
+    if (token[0] === `from`) throw new ParserError(`Expected an import object.`)
+
+    while (true) {
+      if (token[0] === `from`) {
+        nextToken()
+        break
+      }
+
+      if (tokens[i - 1][0] === `idfr`) {
+        if (token[0] !== `,`) throw new ParserError(`"," expected.`)
+        nextToken()
+      }
+
+      if (token[0] !== `idfr`)
+        throw new ParserError(`Expected an identifier after "import".`)
+      importMembers.push(new IdfrNode(token[1]!))
+      nextToken()
+    }
+
+    if (token[0] !== `str`) throw new ParserError(`Expected an import source.`)
+    importSrc = token[1]!
+
+    rootNodes.push(
+      new ImportNode(new ImportListNode(importMembers), new StrNode(importSrc)),
+    )
+  }
+
+  function parseAssgmtExpr() {
+    nextToken()
+    nextToken()
+
+    parseNormalExpr()
+  }
+
+  function parseNormalExpr() {
+    while (true) {
+      if (token[0] !== `idfr`) throw new ParserError(`Expected an identifier.`)
+      nextToken()
+
+      if (token[0] === `idfr`) parseFuncExpr()
+
+      nextToken()
+
+      if (token[0] !== ``) {
+      }
+    }
+  }
+
+  function parseFuncExpr() {}
+
+  return rootNodes
 }

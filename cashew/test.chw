@@ -1,1 +1,17 @@
-print("Hello, world!")
+import print from "std/print"
+
+# This is a comment. Hello world!
+print "Hello, world!"
+
+# Creating variables and performing basic arithmetic
+a = 0
+print a + 4
+print 5 + 2 * 5
+print a / (7 - 2)
+b = 2.24
+print b * 3
+print a * b
+
+# Functions!
+add = func a b -> a + b
+print add 6 4
